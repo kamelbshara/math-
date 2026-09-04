@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sign In | Khaled bin Alwaleed School</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@500;600;700&family=Inter:wght@400;500;600&family=Noto+Kufi+Arabic:wght@500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{ --ink:#171717; --muted:#726f6a; --rule:#dcdad4; --paper-alt:#f5f4f1; --err:#a5342a; }
+  *{box-sizing:border-box;}
+  body{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    font-family:'Inter',sans-serif; background:var(--paper-alt); color:var(--ink); padding:20px; }
+  .card{ background:#fff; border:1px solid var(--rule); border-radius:4px; padding:40px 36px; width:100%; max-width:380px; }
+  .school{ text-align:center; font-size:13px; color:var(--muted); margin-bottom:4px; }
+  .school-ar{ text-align:center; font-family:'Noto Kufi Arabic',sans-serif; font-size:13px; color:var(--muted); direction:rtl; margin-bottom:22px; }
+  h1{ font-family:'Newsreader',serif; font-size:26px; text-align:center; margin:0 0 28px; font-weight:600; }
+  label{ display:block; font-size:13px; font-weight:500; margin-bottom:6px; }
+  input{ width:100%; padding:11px 12px; border:1px solid var(--rule); border-radius:3px; font-size:15px; margin-bottom:16px; font-family:inherit; }
+  input:focus{ outline:2px solid var(--ink); outline-offset:-1px; }
+  button{ width:100%; padding:12px; background:var(--ink); color:#fff; border:none; border-radius:3px;
+    font-size:15px; font-weight:600; cursor:pointer; font-family:inherit; }
+  button:disabled{ opacity:.5; cursor:default; }
+  .err{ background:#f7ebe9; color:var(--err); border:1px solid var(--err); border-radius:3px; padding:10px 12px; font-size:13.5px; margin-bottom:16px; display:none; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <div class="school">Khaled bin Alwaleed School</div>
+    <div class="school-ar">مدرسة خالد بن الوليد</div>
+    <h1>Sign In</h1>
+    <div class="err" id="err"></div>
+    <form id="loginForm">
+      <label for="username">Username</label>
+      <input id="username" autocomplete="username" required>
+      <label for="password">Password</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <button type="submit" id="btn">Sign In</button>
+    </form>
+  </div>
+
+<script src="config.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+if (params.get('err') === 'inactive') {
+  const e = document.getElementById('err');
+  e.textContent = 'This account has been deactivated. Contact your administrator.';
+  e.style.display = 'block';
+}
+
+document.getElementById('loginForm').addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  const btn = document.getElementById('btn');
+  const errEl = document.getElementById('err');
+  errEl.style.display = 'none';
+  btn.disabled = true; btn.textContent = 'Signing in…';
+
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+
+  try {
+    const { data: email, error: lookupErr } = await sb.rpc('get_login_email', { p_username: username });
+    if (lookupErr || !email) throw new Error('Invalid username or password');
+
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) throw new Error('Invalid username or password');
+
+    const { data: profile } = await sb.from('profiles').select('role, active').eq('id', data.user.id).single();
+    if (!profile || !profile.active) {
+      await sb.auth.signOut();
+      throw new Error('This account has been deactivated.');
+    }
+
+    window.location.href = profile.role === 'admin' ? 'admin.html' : 'student.html';
+  } catch (e) {
+    errEl.textContent = e.message || 'Sign in failed.';
+    errEl.style.display = 'block';
+    btn.disabled = false; btn.textContent = 'Sign In';
+  }
+});
+
+// If already logged in, redirect
+(async () => {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    const profile = await getCurrentProfile();
+    if (profile && profile.active) {
+      window.location.href = profile.role === 'admin' ? 'admin.html' : 'student.html';
+    }
+  }
+})();
+</script>
+</body>
+</html>

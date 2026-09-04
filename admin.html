@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin | Khaled bin Alwaleed School</title>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<style>
+:root{
+  --ink:#14161c; --ink-soft:#3d4150; --muted:#767b8c; --line:#e4e5ec; --line-strong:#c7c9d6;
+  --paper:#fff; --surface:#f7f7fb; --accent:#3452e0; --accent-soft:#ecefff;
+  --correct:#1f8a4c; --correct-bg:#e9f7ef; --incorrect:#d13b3b; --incorrect-bg:#fdecec;
+  --sans:'Inter',sans-serif; --serif:'Newsreader',serif; --mono:'JetBrains Mono',monospace;
+  --radius:10px; --shadow:0 1px 2px rgba(20,22,28,.04), 0 4px 16px rgba(20,22,28,.04);
+}
+*{box-sizing:border-box;}
+body{margin:0;font-family:var(--sans);color:var(--ink);background:var(--surface);-webkit-font-smoothing:antialiased;}
+.site-header{background:var(--paper);border-bottom:1px solid var(--line);padding:16px clamp(16px,4vw,48px);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;position:sticky;top:0;z-index:10;}
+.site-header h1{font-family:var(--serif);font-size:21px;margin:0;font-weight:700;}
+.site-header .sub{font-size:12px;color:var(--muted);}
+.hdr-right{display:flex;align-items:center;gap:12px;}
+.hdr-right button{font-family:inherit;font-size:12.5px;background:none;border:1px solid var(--line-strong);border-radius:20px;padding:6px 14px;cursor:pointer;transition:.15s;}
+.hdr-right button:hover{background:var(--surface);}
+.tabs{background:var(--paper);display:flex;gap:2px;border-bottom:1px solid var(--line);padding:0 clamp(16px,4vw,48px);overflow-x:auto;}
+.tab{padding:13px 16px;font-size:13px;font-weight:600;cursor:pointer;border-bottom:2px solid transparent;color:var(--muted);white-space:nowrap;transition:.15s;}
+.tab:hover{color:var(--ink);}
+.tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+main{max-width:1120px;margin:0 auto;padding:26px clamp(16px,4vw,48px) 90px;}
+.panel{display:none;}
+.panel.active{display:block;animation:fade .2s ease;}
+@keyframes fade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+h2{font-family:var(--serif);font-size:22px;margin:0 0 4px;font-weight:700;}
+.hint{font-size:13px;color:var(--muted);margin-bottom:18px;line-height:1.5;}
+table{width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:20px;}
+th,td{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top;}
+th{font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700;}
+.pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:11px;font-weight:600;}
+.pill.active{background:var(--correct-bg);color:var(--correct);}
+.pill.inactive{background:var(--incorrect-bg);color:var(--incorrect);}
+.row-actions{white-space:nowrap;}
+.row-actions button{font-family:inherit;font-size:11.5px;border:1px solid var(--line-strong);background:#fff;color:var(--ink);
+  border-radius:6px;padding:5px 10px;cursor:pointer;margin-right:5px;transition:.15s;}
+.row-actions button:hover{border-color:var(--accent);color:var(--accent);}
+.row-actions button.danger:hover{border-color:var(--incorrect);color:var(--incorrect);background:var(--incorrect-bg);}
+.card{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px;margin-bottom:20px;}
+.card h3{margin:0 0 14px;font-size:15px;font-weight:700;display:flex;align-items:center;gap:8px;}
+.form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.form-row .field{flex:1;min-width:160px;}
+label{display:block;font-size:11px;font-weight:700;margin-bottom:5px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+input,select,textarea{width:100%;padding:9px 11px;border:1.5px solid var(--line-strong);border-radius:7px;font-size:13.5px;font-family:inherit;background:#fff;color:var(--ink);transition:.15s;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft);}
+textarea{min-height:64px;resize:vertical;}
+button.primary{font-family:inherit;background:var(--accent);color:#fff;border:none;border-radius:7px;padding:10px 20px;font-size:13.5px;font-weight:700;cursor:pointer;transition:.15s;}
+button.primary:hover{background:#2a41c4;}
+button.secondary{font-family:inherit;background:#fff;border:1.5px solid var(--line-strong);border-radius:7px;padding:10px 20px;font-size:13.5px;font-weight:600;cursor:pointer;margin-left:8px;}
+button.secondary:hover{border-color:var(--ink);}
+.msg{padding:10px 13px;border-radius:7px;font-size:13px;margin-bottom:14px;display:none;}
+.msg.ok{background:var(--correct-bg);color:var(--correct);display:block;}
+.msg.err{background:var(--incorrect-bg);color:var(--incorrect);display:block;}
+.preview-table{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:7px;margin-bottom:14px;}
+.stat-strip{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+.stat{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:16px 18px;}
+.stat .n{font-family:var(--serif);font-size:26px;font-weight:700;color:var(--accent);}
+.stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;margin-top:2px;}
+.chapter-block{background:var(--paper);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden;}
+.chapter-head{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;background:var(--accent-soft);}
+.chapter-head .title{font-family:var(--serif);font-size:16px;font-weight:700;}
+.lesson-row{padding:12px 18px;border-top:1px solid var(--line);}
+.lesson-row .top{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.lesson-row .info{flex:1;}
+.lesson-row .title{font-weight:600;font-size:14px;}
+.lesson-row .sub{font-size:12px;color:var(--muted);margin-top:2px;}
+.outcomes-box{background:var(--surface);border-radius:7px;padding:12px 14px;margin-top:10px;display:none;}
+.outcomes-box.open{display:block;}
+.outcome-item{display:flex;justify-content:space-between;align-items:center;padding:6px 0;font-size:13px;border-bottom:1px dashed var(--line);}
+.outcome-item:last-child{border-bottom:none;}
+.badge{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:10.5px;font-weight:700;margin-right:8px;flex:none;}
+.thumb{width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--line);}
+.img-upload-row{display:flex;align-items:center;gap:12px;margin-bottom:12px;}
+.small-btn{font-family:inherit;font-size:11.5px;border:1px solid var(--line-strong);background:#fff;border-radius:6px;padding:5px 10px;cursor:pointer;}
+.small-btn.danger{border-color:var(--incorrect);color:var(--incorrect);}
+</style>
+</head>
+<body>
+<header class="site-header">
+  <div>
+    <h1>Admin Console</h1>
+    <div class="sub">Khaled bin Alwaleed School — Polynomials Module</div>
+  </div>
+  <div class="hdr-right">
+    <span id="adminName" style="font-size:13.5px;"></span>
+    <button id="logoutBtn">Sign Out</button>
+  </div>
+</header>
+
+<div class="tabs">
+  <div class="tab active" data-tab="overview">Overview</div>
+  <div class="tab" data-tab="users">Users</div>
+  <div class="tab" data-tab="classrooms">Classrooms</div>
+  <div class="tab" data-tab="content">Chapters &amp; Lessons</div>
+  <div class="tab" data-tab="questionbank">Question Bank</div>
+  <div class="tab" data-tab="resources">Resources</div>
+  <div class="tab" data-tab="analytics">Analytics</div>
+  <div class="tab" data-tab="auditlog">Audit Log</div>
+</div>
+
+<main>
+  <div class="panel active" id="panel-overview">
+    <h2>Overview</h2>
+    <p class="hint">Snapshot of the current module.</p>
+    <div class="stat-strip" id="statStrip"></div>
+    <div class="msg err" id="edgeFnWarning" style="display:none;">The <code>admin-users</code> Edge Function is unreachable. User creation, bulk import, activation, and deletion may not work.</div>
+  </div>
+
+  <div class="panel" id="panel-users">
+    <h2>Users</h2>
+    <p class="hint">Add students/admins individually or import in bulk via Excel (.xlsx).</p>
+    <div class="card">
+      <h3>Add a single user</h3>
+      <div class="msg" id="addUserMsg"></div>
+      <div class="form-row">
+        <div class="field"><label>Username</label><input id="nu_username"></div>
+        <div class="field"><label>Full Name</label><input id="nu_fullname"></div>
+        <div class="field"><label>Password</label><input id="nu_password" type="text"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Role</label><select id="nu_role"><option value="student">Student</option><option value="admin">Admin</option></select></div>
+        <div class="field"><label>Classroom</label><select id="nu_classroom"></select></div>
+      </div>
+      <button class="primary" id="addUserBtn">Add User</button>
+    </div>
+    <div class="card">
+      <h3>Bulk import from Excel (.xlsx)</h3>
+      <p class="hint">Columns expected: <b>username, full_name, password, classroom</b> (classroom name, optional).</p>
+      <input type="file" id="xlsxInput" accept=".xlsx,.xls,.csv">
+      <div class="preview-table" id="xlsxPreview" style="display:none;"></div>
+      <div class="msg" id="bulkMsg"></div>
+      <button class="primary" id="bulkImportBtn" style="display:none;margin-top:10px;">Import All</button>
+    </div>
+    <table id="usersTable"><thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Classroom</th><th>Status</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="panel" id="panel-classrooms">
+    <h2>Classrooms</h2>
+    <div class="card">
+      <h3>Add classroom</h3>
+      <div class="msg" id="classroomMsg"></div>
+      <div class="form-row"><div class="field"><label>Name</label><input id="cr_name" placeholder="e.g. Grade 10 Advanced"></div></div>
+      <button class="primary" id="addClassroomBtn">Add Classroom</button>
+    </div>
+    <table id="classroomsTable"><thead><tr><th>Name</th><th>Students</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="panel" id="panel-content">
+    <h2>Chapters &amp; Lessons</h2>
+    <p class="hint">Manage the chapter → lesson → learning-outcome hierarchy. Click a lesson's "Outcomes" button to manage its learning outcomes inline.</p>
+
+    <div class="card">
+      <h3 id="ch_form_title">Add chapter</h3>
+      <div class="msg" id="chapterMsg"></div>
+      <div class="form-row">
+        <div class="field" style="max-width:100px;"><label>Number</label><input id="ch_number" type="number"></div>
+        <div class="field"><label>Title (EN)</label><input id="ch_title_en"></div>
+        <div class="field"><label>Title (AR)</label><input id="ch_title_ar" dir="rtl"></div>
+      </div>
+      <label>Cover image — optional</label>
+      <div class="img-upload-row">
+        <img id="ch_img_preview" class="thumb" style="display:none;">
+        <input type="file" id="ch_image_input" accept="image/*">
+        <button type="button" class="small-btn danger" id="ch_removeImgBtn" style="display:none;">Remove image</button>
+      </div>
+      <button class="primary" id="saveChapterBtn">Add Chapter</button>
+      <button class="secondary" id="ch_cancelBtn" style="display:none;">Cancel Edit</button>
+    </div>
+
+    <div class="card">
+      <h3 id="ls_form_title">Add lesson</h3>
+      <div class="msg" id="lessonMsg"></div>
+      <div class="form-row">
+        <div class="field"><label>Chapter</label><select id="ls_chapter"></select></div>
+        <div class="field" style="max-width:100px;"><label>Number</label><input id="ls_number" type="number"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Title (EN)</label><input id="ls_title_en"></div>
+        <div class="field"><label>Title (AR)</label><input id="ls_title_ar" dir="rtl"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Guide (EN)</label><textarea id="ls_guide_en"></textarea></div>
+        <div class="field"><label>Guide (AR)</label><textarea id="ls_guide_ar" dir="rtl"></textarea></div>
+      </div>
+      <button class="primary" id="saveLessonBtn">Add Lesson</button>
+      <button class="secondary" id="ls_cancelBtn" style="display:none;">Cancel Edit</button>
+    </div>
+
+    <div id="chapterTree"></div>
+  </div>
+
+  <div class="panel" id="panel-questionbank">
+    <h2>Question Bank</h2>
+    <p class="hint">Add, edit, or remove questions — including an optional image or diagram. Select with checkboxes to print a worksheet.</p>
+    <div class="form-row" style="align-items:flex-end;">
+      <div class="field" style="max-width:320px;"><label>Filter by lesson</label><select id="qb_lesson_filter"></select></div>
+      <div class="field" style="flex:none;"><button class="secondary" id="qb_printBtn" style="margin-left:0;">🖨 Print Selected (<span id="qb_selCount">0</span>)</button></div>
+      <div class="field" style="flex:none;"><button class="secondary" id="qb_printAnswersBtn" style="margin-left:0;">🖨 Print + Answer Key</button></div>
+    </div>
+
+    <div class="card" id="qb_form_card">
+      <h3 id="qb_form_title">Add question</h3>
+      <div class="msg" id="qbMsg"></div>
+      <div class="form-row">
+        <div class="field"><label>Lesson</label><select id="qb_lesson"></select></div>
+        <div class="field" style="max-width:120px;"><label>Number</label><input id="qb_number" placeholder="e.g. 15"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Question (EN)</label><textarea id="qb_question_en" placeholder="e.g. (2x + 3y) + (4x + 9y)"></textarea></div>
+        <div class="field"><label>Question (AR) — optional</label><textarea id="qb_question_ar" dir="rtl"></textarea></div>
+      </div>
+      <label>Image / diagram — optional</label>
+      <div class="img-upload-row">
+        <img id="qb_img_preview" class="thumb" style="display:none;">
+        <input type="file" id="qb_image_input" accept="image/*">
+        <button type="button" class="small-btn danger" id="qb_removeImgBtn" style="display:none;">Remove image</button>
+      </div>
+      <label style="margin-top:4px;">Choices — mark the correct one, optionally add feedback shown when picked</label>
+      <div class="form-row">
+        <div class="field"><input id="qb_choice0" placeholder="Choice A"></div>
+        <div class="field" style="flex:none;width:44px;text-align:center;"><input type="radio" name="qb_correct" value="0" checked style="width:auto;margin-top:10px;"></div>
+        <div class="field"><input id="qb_explain0" placeholder="Feedback (optional)"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><input id="qb_choice1" placeholder="Choice B"></div>
+        <div class="field" style="flex:none;width:44px;text-align:center;"><input type="radio" name="qb_correct" value="1" style="width:auto;margin-top:10px;"></div>
+        <div class="field"><input id="qb_explain1" placeholder="Feedback (optional)"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><input id="qb_choice2" placeholder="Choice C"></div>
+        <div class="field" style="flex:none;width:44px;text-align:center;"><input type="radio" name="qb_correct" value="2" style="width:auto;margin-top:10px;"></div>
+        <div class="field"><input id="qb_explain2" placeholder="Feedback (optional)"></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><input id="qb_choice3" placeholder="Choice D"></div>
+        <div class="field" style="flex:none;width:44px;text-align:center;"><input type="radio" name="qb_correct" value="3" style="width:auto;margin-top:10px;"></div>
+        <div class="field"><input id="qb_explain3" placeholder="Feedback (optional)"></div>
+      </div>
+      <button class="primary" id="qb_saveBtn">Add Question</button>
+      <button class="secondary" id="qb_cancelBtn" style="display:none;">Cancel Edit</button>
+    </div>
+
+    <table id="qbTable">
+      <thead><tr><th style="width:30px;"><input type="checkbox" id="qb_selectAll"></th><th></th><th>#</th><th>Question</th><th>Correct Answer</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="panel" id="panel-resources">
+    <h2>Lesson Resources</h2>
+    <p class="hint">Add unlisted YouTube video links, worksheets, or chapter revision materials. Videos and worksheets are watermarked with the student's name when viewed.</p>
+    <div class="card">
+      <h3 id="rs_form_title">Add resource</h3>
+      <div class="msg" id="resourceMsg"></div>
+      <div class="form-row">
+        <div class="field"><label>Lesson</label><select id="rs_lesson"></select></div>
+        <div class="field"><label>Type</label><select id="rs_type"><option value="video">Video (YouTube, unlisted)</option><option value="worksheet">Worksheet</option><option value="revision">Chapter Revision</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="field"><label>Title</label><input id="rs_title" placeholder="e.g. Lesson 1 — Explainer Video"></div>
+        <div class="field"><label>URL</label><input id="rs_url" placeholder="https://youtu.be/... or worksheet link"></div>
+      </div>
+      <button class="primary" id="addResourceBtn">Add Resource</button>
+      <button class="secondary" id="rs_cancelBtn" style="display:none;">Cancel Edit</button>
+    </div>
+    <table id="resourcesTable"><thead><tr><th>Lesson</th><th>Type</th><th>Title</th><th></th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="panel" id="panel-analytics">
+    <h2>Analytics</h2>
+    <p class="hint">Where students are struggling, and who's watching what.</p>
+    <h3 style="font-size:15px;margin:18px 0 10px;">Most-missed questions</h3>
+    <table id="missedTable"><thead><tr><th>Lesson</th><th>Question</th><th>Attempts</th><th>% Correct</th></tr></thead><tbody></tbody></table>
+    <h3 style="font-size:15px;margin:18px 0 10px;">Per-student performance</h3>
+    <table id="studentStatsTable"><thead><tr><th>Student</th><th>Classroom</th><th>Answered</th><th>% Correct</th><th></th></tr></thead><tbody></tbody></table>
+    <div class="card" id="studentDetailCard" style="display:none;">
+      <h3 id="studentDetailTitle">Student Progress</h3>
+      <table id="studentDetailTable"><thead><tr><th>Lesson</th><th>Answered</th><th>% Correct</th></tr></thead><tbody></tbody></table>
+      <h3 style="font-size:14px;margin:16px 0 8px;">Videos watched</h3>
+      <table id="studentDetailVideos"><thead><tr><th>Video</th><th>Viewed At</th></tr></thead><tbody></tbody></table>
+    </div>
+    <h3 style="font-size:15px;margin:18px 0 10px;">Video views</h3>
+    <table id="videoViewsTable"><thead><tr><th>Video</th><th>Student</th><th>Viewed At</th></tr></thead><tbody></tbody></table>
+  </div>
+
+  <div class="panel" id="panel-auditlog">
+    <h2>Audit Log</h2>
+    <p class="hint">Recent changes to chapters, lessons, questions, choices, resources, and users. Most recent first.</p>
+    <table id="auditTable"><thead><tr><th>When</th><th>Who</th><th>Action</th><th>Table</th></tr></thead><tbody></tbody></table>
+  </div>
+</main>
+
+<script src="config.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>
